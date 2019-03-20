@@ -8,7 +8,6 @@ import (
 	"net"
 	"os"
 	"regexp"
-	"strconv"
 )
 
 func main() {
@@ -19,22 +18,31 @@ func main() {
 		return
 	}
 
-	if mat, err := regexp.Match("", []byte(common.LocalAddr)); err != nil && mat {
+	addrPattern := "^(.*:)([0-9]+)$"
 
+	if mat, err := regexp.Match(addrPattern, []byte(common.LocalAddr)); err != nil && mat {
+		// legal
+	} else {
+		log.Fatal("error: illegal local address")
+	}
+	if mat, err := regexp.Match(addrPattern, []byte(common.RemoteAddr)); err != nil && mat {
+		// legal
+	} else {
+		log.Fatal("error: illegal remote address")
 	}
 
-	listener, err := net.Listen("tcp", ":"+strconv.Itoa(common.Port))
+	listener, err := net.Listen("tcp", common.LocalAddr)
 	if err != nil {
 		log.Fatal("error listening on local port: ", err)
 	}
-	log.Println("server listening on port ", strconv.Itoa(common.Port))
+	log.Println("server listening at ", common.LocalAddr)
 	for {
 		conn, err := listener.Accept()
 		// log.Println("new connection...")
 		if err != nil {
 			log.Fatal("error accept connection: ", err)
 		}
-		backendConn, err := net.Dial("tcp", "foxmaz.com:7500")
+		backendConn, err := net.Dial("tcp", common.RemoteAddr)
 		if err != nil {
 			log.Fatal("error connect to server: ", err)
 		}
@@ -46,7 +54,7 @@ func pipe(conn1 net.Conn, conn2 net.Conn) {
 	go func() {
 		_, err := io.Copy(conn1, conn2)
 		if err != nil {
-			//log.Println("error: ", err, ", read bytes:", len)
+			// log.Println("error: ", err, ", read bytes:", len)
 		}
 		// fmt.Println("pipe end1")
 		conn1.Close()
@@ -55,7 +63,7 @@ func pipe(conn1 net.Conn, conn2 net.Conn) {
 	go func() {
 		_, err := io.Copy(conn2, conn1)
 		if err != nil {
-			//log.Println("error: ", err, ", read bytes:", len)
+			// log.Println("error: ", err, ", read bytes:", len)
 		}
 		// fmt.Println("pipe end2")
 		conn1.Close()
