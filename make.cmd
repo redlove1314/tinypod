@@ -16,13 +16,17 @@ for /f %%k in ('go env GOROOT') do set gr=%%k
 set GOROOT=%gr%
 set GOPATH=%gp%
 
-echo step 1/2: create build output directory.
+echo step 1/3: create build output directory.
 IF NOT EXIST bin mkdir bin
+
+echo step 2/3: install libs...
+go get github.com/urfave/cli
 
 set GOPATH=%gp%;%pwd%
 
-echo step 2/2: build...
-go build -i -o bin/httpd.exe src/main.go
+echo step 3/3: build...
+go build -i -o bin/http.exe src/http.go
+go build -i -o bin/proxy.exe src/proxy.go
 
 echo build success!
 
