@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"regexp"
+	"strings"
 )
 
 func main() {
@@ -18,24 +19,30 @@ func main() {
 		return
 	}
 
-	addrPattern := "^(.*:)([0-9]+)$"
+	localAddrPattern := "^([^:]*:)?[1-9][0-9]*$"
+	remoteAddrPattern := "^[^:]+:[1-9][0-9]*$"
 
-	if mat, err := regexp.Match(addrPattern, []byte(common.LocalAddr)); err != nil && mat {
+	if mat, err := regexp.Match(localAddrPattern, []byte(common.LocalAddr)); err == nil && mat {
 		// legal
 	} else {
 		log.Fatal("error: illegal local address")
 	}
-	if mat, err := regexp.Match(addrPattern, []byte(common.RemoteAddr)); err != nil && mat {
+	if mat, err := regexp.Match(remoteAddrPattern, []byte(common.RemoteAddr)); err == nil && mat {
 		// legal
 	} else {
 		log.Fatal("error: illegal remote address")
 	}
 
-	listener, err := net.Listen("tcp", common.LocalAddr)
+	tmpAddr := common.LocalAddr
+	if strings.Index(common.LocalAddr, ":") == -1 {
+		tmpAddr = ":" + tmpAddr
+	}
+
+	listener, err := net.Listen("tcp", tmpAddr)
 	if err != nil {
 		log.Fatal("error listening on local port: ", err)
 	}
-	log.Println("server listening at ", common.LocalAddr)
+	log.Println("server listening at", common.LocalAddr)
 	for {
 		conn, err := listener.Accept()
 		// log.Println("new connection...")

@@ -61,7 +61,7 @@ func main() {
 		log.Print("get->["+request.URL.Path, "]")
 		filename := common.ContextPath + request.URL.Path
 		// fmt.Println(request.RequestURI)
-		if !lib.Exists(filename) {
+		if !lib.Exists(filename) || lib.IsDir(filename) {
 			writer.WriteHeader(http.StatusNotFound)
 			writer.Write([]byte(strings.Replace(common.NOT_FOUND, "#?#", request.URL.Path, -1)))
 			return
