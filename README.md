@@ -3,6 +3,7 @@ A simple http/tcp proxy util which can bring great fun!
 
 ### What can i do?
 I can map a directory as an http content server with just one single command!
+
 I can also proxy a remote port on my local machine!
 
 You must install golang first!
@@ -20,7 +21,7 @@ output executable files:
 - bin/http
 - bin/proxy
 
-#### how to use
+#### How to use
 
 http way:
 ```shell
