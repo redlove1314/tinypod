@@ -1,4 +1,7 @@
 # TinyPod
+[![Build Status](https://travis-ci.org/hetianyi/tinypod.svg?branch=master)](https://travis-ci.org/hetianyi/tinypod)
+
+
 A simple http/tcp proxy util which can bring great fun!
 
 ### What can i do?
