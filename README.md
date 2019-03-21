@@ -9,7 +9,7 @@ I can map a directory as an http content server with just one single command!
 
 I can also proxy a remote port on my local machine!
 
-You must install golang first!
+> You must install golang 1.8+ first!
 
 #### Build
 build on linux:
@@ -37,4 +37,4 @@ proxy start -l 2022 -r 192.168.1.100:22
 ```
 
 Docker Image:
-[https://hub.docker.com/r/hehety/tinypod](https://hub.docker.com/r/hehety/tinypod)
+[https://cloud.docker.com/u/hehety/repository/docker/hehety/tinypod](https://cloud.docker.com/u/hehety/repository/docker/hehety/tinypod)
