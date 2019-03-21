@@ -7,14 +7,14 @@ echo "+-------------------------------------+"
 rm -rf bin
 
 export GOROOT=$(go env GOROOT)
-if [[ -z "$(go env GOPATH)" ]]; then
+if [ -z "$(go env GOPATH)" ]; then
     export GOPATH=${HOME}/go:$PWD
 else
     export GOPATH=$(go env GOPATH):$PWD
 fi
 
 echo "step 1/3: create build output directory."
-if [[ ! -e "./bin" ]];then
+if [ ! -e "./bin" ];then
     mkdir ./bin
 fi
 
