@@ -28,7 +28,7 @@ output executable files:
 
 http way:
 ```shell
-http start -p 8080 -c /usr/share/html -a "admin:123456"
+http start -p 8080 -w /usr/share/html -a "admin:123456" -i
 ```
 
 tcp way:

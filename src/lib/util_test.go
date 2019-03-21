@@ -3,7 +3,6 @@ package lib
 import (
 	"fmt"
 	"io/ioutil"
-	"sort"
 	"testing"
 )
 
