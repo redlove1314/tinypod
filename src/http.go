@@ -46,10 +46,15 @@ func main() {
 	log.Println("map local directory", common.WorkDir, "to http context", common.ContextPath)
 
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
-		if !strings.HasPrefix(request.URL.Path+"/", common.ContextPath+"/") {
-			writer.WriteHeader(http.StatusNotFound)
-			writer.Write([]byte(strings.Replace(common.NOT_FOUND, "#?#", request.URL.Path, -1)))
-			return
+		if common.ContextPath != "/" {
+			if len(request.URL.Path) < len(common.ContextPath) ||
+				(len(request.URL.Path) == len(common.ContextPath) && request.URL.Path != common.ContextPath) ||
+				(len(request.URL.Path) > len(common.ContextPath) &&
+					(request.URL.Path[0:len(common.ContextPath)] != common.ContextPath || request.URL.Path[len(common.ContextPath):len(common.ContextPath)+1] != "/")) {
+				writer.WriteHeader(http.StatusNotFound)
+				writer.Write([]byte(strings.Replace(common.NOT_FOUND, "#?#", request.URL.Path, -1)))
+				return
+			}
 		}
 		user, pass, _ := request.BasicAuth()
 		if common.BasicAuth != "" && common.BasicAuth != user+":"+pass {
@@ -73,12 +78,16 @@ func main() {
 
 		log.Print("get->["+request.URL.Path, "]")
 
-		if request.URL.Path == common.ContextPath+"/icon/folder.png" {
+		prefix := common.ContextPath
+		if prefix == "/" {
+			prefix = ""
+		}
+		if request.URL.Path == prefix+"/icon/folder.png" {
 			writer.Header().Add("Content-Type", "image/png")
 			writer.Header().Add("Content-Length", strconv.Itoa(len(common.IconFolder)))
 			writer.Write([]byte(common.IconFolder))
 			return
-		} else if request.URL.Path == common.ContextPath+"/icon/file.png" {
+		} else if request.URL.Path == prefix+"/icon/file.png" {
 			writer.Header().Add("Content-Type", "image/png")
 			writer.Header().Add("Content-Length", strconv.Itoa(len(common.IconFile)))
 			writer.Write([]byte(common.IconFile))
@@ -217,10 +226,14 @@ func indexDir(uri string, path string) string {
 	for ele := dirs.Front(); ele != nil; ele = ele.Next() {
 		info := ele.Value.(os.FileInfo)
 		buff.WriteString("<tr>")
+		prefix := common.ContextPath
+		if prefix == "/" {
+			prefix = ""
+		}
 		if info.IsDir() {
-			buff.WriteString("<td><img class='icon' src='" + common.ContextPath + "/icon/folder.png'></td>")
+			buff.WriteString("<td><img class='icon' src='" + prefix + "/icon/folder.png'></td>")
 		} else {
-			buff.WriteString("<td><img class='icon' src='" + common.ContextPath + "/icon/file.png'></td>")
+			buff.WriteString("<td><img class='icon' src='" + prefix + "/icon/file.png'></td>")
 		}
 		buff.WriteString("<td><a href=\"")
 		buff.WriteString(uri)
