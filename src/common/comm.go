@@ -10,7 +10,7 @@ import (
 const (
 	COMMAND_START = 1
 
-	BACKEND_PATTERN = "^(/[^:]+):(.+)$"
+	BACKEND_PATTERN = "^(/[^:]*):(.+)$"
 
 	NOT_FOUND = `
 <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
