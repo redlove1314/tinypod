@@ -313,8 +313,9 @@ func resolveBackend(k string, uri string, writer http.ResponseWriter, request *h
 	} else {
 		proxyUrl = v + "/" + uri[1:]
 	}
-	log.Println("proxy of ", proxyUrl+"?"+request.URL.Query().Encode())
-	req, err := http.NewRequest(request.Method, proxyUrl+"?"+request.URL.Query().Encode(), request.Body)
+	queryS := lib.TValue(request.URL.Query().Encode() == "", "", "?"+request.URL.Query().Encode()).(string)
+	log.Println("proxy of", proxyUrl+queryS)
+	req, err := http.NewRequest(request.Method, proxyUrl+queryS, request.Body)
 	if err != nil {
 		lib.WriteHttpResponse(writer, http.StatusInternalServerError, common.INTERNAL_SERVER_ERROR, nil)
 		return
@@ -349,7 +350,7 @@ func resolveBackend(k string, uri string, writer http.ResponseWriter, request *h
 			}
 			// log.Println("body read finish")
 		}, func(i interface{}) {
-			// log.Println("error proxy url: ", proxyUrl)
+			log.Println("error proxy url: ", proxyUrl, ":", i)
 		})
 	}
 }
@@ -359,11 +360,14 @@ func invokeBackend(uri string) string {
 		return ""
 	}
 	for k := range common.BackendMappings {
+		if k == "/" {
+			return k
+		}
 		if strings.HasPrefix(uri, k) {
 			if len(uri) == len(k) && uri != k {
 				continue
 			}
-			if len(uri) > len(k) && uri[len(k):len(k)+1] != "/" {
+			if len(uri) > len(k) && (uri[0:len(k)] != k || uri[len(k):len(k)+1] != "/") {
 				continue
 			}
 			return k
