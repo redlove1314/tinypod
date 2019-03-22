@@ -3,6 +3,7 @@ package lib
 import (
 	"fmt"
 	"io/ioutil"
+	"regexp"
 	"testing"
 )
 
@@ -22,4 +23,5 @@ func Test1(t *testing.T) {
 func Test2(t *testing.T) {
 	a := []string{"1.jpg", "11.jpg", "2.jpg"}
 	fmt.Println(a)
+	fmt.Println(regexp.Match("^/[^:]+:.+$", []byte("///:app/:http://12312323.com/::asdiqweqd")))
 }

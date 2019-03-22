@@ -23,6 +23,8 @@ import (
 	"time"
 )
 
+var httpClient *http.Client
+
 func main() {
 
 	runtime.GOMAXPROCS(500)
@@ -47,38 +49,42 @@ func main() {
 	common.ContextPath = lib.FixPath("/" + common.ContextPath)
 	log.Println("map local directory", common.WorkDir, "to http context", common.ContextPath)
 
+	httpClient = &http.Client{}
+
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		if common.ContextPath != "/" {
 			if len(request.URL.Path) < len(common.ContextPath) ||
 				(len(request.URL.Path) == len(common.ContextPath) && request.URL.Path != common.ContextPath) ||
 				(len(request.URL.Path) > len(common.ContextPath) &&
 					(request.URL.Path[0:len(common.ContextPath)] != common.ContextPath || request.URL.Path[len(common.ContextPath):len(common.ContextPath)+1] != "/")) {
-				writer.WriteHeader(http.StatusNotFound)
-				writer.Write([]byte(strings.Replace(common.NOT_FOUND, "#?#", request.URL.Path, -1)))
+				lib.WriteHttpResponse(writer, http.StatusNotFound, strings.Replace(common.NOT_FOUND, "#?#", request.URL.Path, -1), nil)
 				return
 			}
 		}
 		user, pass, _ := request.BasicAuth()
 		if common.BasicAuth != "" && common.BasicAuth != user+":"+pass {
-			writer.Header().Add("WWW-Authenticate", "Basic realm=\"example\"")
-			writer.WriteHeader(http.StatusUnauthorized)
-			writer.Write([]byte(common.FORBIDDEN))
+			lib.WriteHttpResponse(writer, http.StatusUnauthorized, common.FORBIDDEN, map[string]string{"WWW-Authenticate": "Basic realm=\"example\""})
 			return
 		}
 
 		if request.Method == http.MethodOptions {
-			writer.Header().Add("Access-Control-Allow-Method", "GET,OPTIONS")
-			writer.Header().Add("Access-Control-Allow-Origin", "*")
-			writer.WriteHeader(http.StatusNoContent)
-			return
-		}
-		if request.Method != http.MethodGet {
-			writer.WriteHeader(http.StatusMethodNotAllowed)
-			writer.Write([]byte(strings.Replace(common.METHOD_NOT_ALLOWED, "#?#", request.Method, -1)))
+			lib.WriteHttpResponse(writer, http.StatusNoContent, "",
+				map[string]string{"Access-Control-Allow-Method": "GET,OPTIONS", "Access-Control-Allow-Origin": "*"})
 			return
 		}
 
-		log.Print("get->["+request.URL.Path, "]")
+		/*if request.Method != http.MethodGet {
+			lib.WriteHttpResponse(writer, http.StatusMethodNotAllowed, strings.Replace(common.METHOD_NOT_ALLOWED, "#?#", request.Method, -1), nil)
+			return
+		}*/
+
+		log.Print("get->[" + request.URL.Path + "]")
+
+		key := invokeBackend(request.URL.Path)
+		if key != "" {
+			resolveBackend(key, request.URL.Path, writer, request)
+			return
+		}
 
 		prefix := common.ContextPath
 		if prefix == "/" {
@@ -183,9 +189,9 @@ func initHttpFlags() {
 					Destination: &common.IndexDir,
 				},
 				cli.StringFlag{
-					Name:        "backend,b",
-					Value:       "",
-					Usage:       `proxy backend server api.
+					Name:  "backend,b",
+					Value: "",
+					Usage: `proxy backend server api.
 	for example, if you want to replace api 
 	'http://xxx.com/api/anything'
 	with 
@@ -294,5 +300,74 @@ func humanReadableSize(size int64) string {
 	}
 }
 
+func resolveBackend(k string, uri string, writer http.ResponseWriter, request *http.Request) {
+	v := common.BackendMappings[k]
+	proxyUrl := ""
+	if strings.HasSuffix(v, "/") {
+		pick := strings.TrimSpace(uri[len(k):])
+		if strings.HasPrefix(pick, "/") {
+			proxyUrl = v + pick[1:]
+		} else {
+			proxyUrl = v + pick
+		}
+	} else {
+		proxyUrl = v + "/" + uri[1:]
+	}
+	log.Println("proxy of ", proxyUrl+"?"+request.URL.Query().Encode())
+	req, err := http.NewRequest(request.Method, proxyUrl+"?"+request.URL.Query().Encode(), request.Body)
+	if err != nil {
+		lib.WriteHttpResponse(writer, http.StatusInternalServerError, common.INTERNAL_SERVER_ERROR, nil)
+		return
+	}
+	req.Header = request.Header
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		lib.WriteHttpResponse(writer, http.StatusInternalServerError, common.INTERNAL_SERVER_ERROR, nil)
+		return
+	}
+	if resp.Header != nil {
+		for k, v := range resp.Header {
+			writer.Header().Add(k, v[0])
+		}
+	}
+	writer.WriteHeader(resp.StatusCode)
 
-func
+	defer resp.Body.Close()
+	if req.Method != http.MethodHead {
+		lib.Try(func() {
+			buff := make([]byte, 1024)
+			for {
+				len, err := resp.Body.Read(buff)
+				if len > 0 {
+					writer.Write(buff[0:len])
+					continue
+				}
+				if err != nil {
+					// log.Println(err)
+					break
+				}
+			}
+			// log.Println("body read finish")
+		}, func(i interface{}) {
+			// log.Println("error proxy url: ", proxyUrl)
+		})
+	}
+}
+
+func invokeBackend(uri string) string {
+	if len(common.BackendMappings) == 0 {
+		return ""
+	}
+	for k := range common.BackendMappings {
+		if strings.HasPrefix(uri, k) {
+			if len(uri) == len(k) && uri != k {
+				continue
+			}
+			if len(uri) > len(k) && uri[len(k):len(k)+1] != "/" {
+				continue
+			}
+			return k
+		}
+	}
+	return ""
+}

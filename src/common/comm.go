@@ -1,12 +1,16 @@
 package common
 
 import (
+	"lib"
 	"log"
+	"regexp"
 	"strings"
 )
 
 const (
 	COMMAND_START = 1
+
+	BACKEND_PATTERN = "^(/[^:]+):(.+)$"
 
 	NOT_FOUND = `
 <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
@@ -34,6 +38,16 @@ const (
 </head><body>
 <h1>Access forbidden</h1>
 <p>You don't have permission to access the requested resource.</p>
+</body></html>
+`
+	INTERNAL_SERVER_ERROR = `
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head>
+<title>500 Internal Server Error</title>
+</head><body>
+<h1>Server Error</h1>
+<p>The server encountered an internal error and was 
+    unable to complete your request.</p>
 </body></html>
 `
 	DIR_INDEX = `
@@ -93,18 +107,11 @@ func ParseBackendMapping() {
 	if sp != nil {
 		for _, v := range sp {
 			v = strings.TrimSpace(v)
-			if v == "" {
-				continue
-			}
-			first := strings.Index(v, ":")
-			if first == -1 || first == len(v)-1 {
+			if mat, err := regexp.Match(BACKEND_PATTERN, []byte(v)); err != nil || !mat {
 				log.Fatal("error parse backend mapping" + v + ": format error!")
 			}
-			head := strings.TrimSpace(v[0:first])
-			tail := strings.TrimSpace(v[first+1:])
-			if head == "" || tail == "" {
-				log.Fatal("error backend mapping" + v + ": format error!")
-			}
+			head := lib.FixPath(regexp.MustCompile(BACKEND_PATTERN).ReplaceAllString(v, "$1"))
+			tail := regexp.MustCompile(BACKEND_PATTERN).ReplaceAllString(v, "$2")
 			BackendMappings[head] = tail
 		}
 	}
