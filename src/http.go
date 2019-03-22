@@ -78,13 +78,15 @@ func main() {
 			return
 		}*/
 
-		log.Print("get->[" + request.URL.Path + "]")
-
 		key := invokeBackend(request.URL.Path)
 		if key != "" {
 			resolveBackend(key, request.URL.Path, writer, request)
 			return
 		}
+		statusCode := http.StatusOK
+		defer func() {
+			log.Print("[" + strconv.Itoa(statusCode) + "] -> " + request.URL.Path)
+		}()
 
 		prefix := common.ContextPath
 		if prefix == "/" {
@@ -106,12 +108,14 @@ func main() {
 		filename = lib.FixPath(filename)
 		// fmt.Println(request.RequestURI)
 		if !lib.Exists(filename) {
+			statusCode = http.StatusNotFound
 			writer.WriteHeader(http.StatusNotFound)
 			writer.Write([]byte(strings.Replace(common.NOT_FOUND, "#?#", request.URL.Path, -1)))
 			return
 		}
 		if lib.IsDir(filename) {
 			if !common.IndexDir {
+				statusCode = http.StatusForbidden
 				writer.WriteHeader(http.StatusForbidden)
 				writer.Write([]byte(common.FORBIDDEN))
 				return
@@ -314,15 +318,22 @@ func resolveBackend(k string, uri string, writer http.ResponseWriter, request *h
 		proxyUrl = v + "/" + uri[1:]
 	}
 	queryS := lib.TValue(request.URL.Query().Encode() == "", "", "?"+request.URL.Query().Encode()).(string)
-	log.Println("proxy of", proxyUrl+queryS)
+
+	statusCode := http.StatusOK
+	defer func() {
+		log.Println("["+strconv.Itoa(statusCode)+"] proxy", proxyUrl+queryS)
+	}()
+
 	req, err := http.NewRequest(request.Method, proxyUrl+queryS, request.Body)
 	if err != nil {
+		statusCode = http.StatusInternalServerError
 		lib.WriteHttpResponse(writer, http.StatusInternalServerError, common.INTERNAL_SERVER_ERROR, nil)
 		return
 	}
 	req.Header = request.Header
 	resp, err := httpClient.Do(req)
 	if err != nil {
+		statusCode = http.StatusInternalServerError
 		lib.WriteHttpResponse(writer, http.StatusInternalServerError, common.INTERNAL_SERVER_ERROR, nil)
 		return
 	}
@@ -331,6 +342,7 @@ func resolveBackend(k string, uri string, writer http.ResponseWriter, request *h
 			writer.Header().Add(k, v[0])
 		}
 	}
+	statusCode = resp.StatusCode
 	writer.WriteHeader(resp.StatusCode)
 
 	defer resp.Body.Close()
