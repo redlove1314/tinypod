@@ -32,6 +32,8 @@ func main() {
 	if common.Command != common.COMMAND_START {
 		return
 	}
+	// parse backend mappings
+	common.ParseBackendMapping()
 
 	workDir, _ := os.Getwd()
 	if common.WorkDir != "" {
@@ -159,7 +161,7 @@ func initHttpFlags() {
 				},
 				cli.StringFlag{
 					Name:        "context,c",
-					Value:       "",
+					Value:       "/",
 					Usage:       "mapping context path",
 					Destination: &common.ContextPath,
 				},
@@ -179,6 +181,25 @@ func initHttpFlags() {
 					Name:        "index,i",
 					Usage:       "whether support directory indexing",
 					Destination: &common.IndexDir,
+				},
+				cli.StringFlag{
+					Name:        "backend,b",
+					Value:       "",
+					Usage:       `proxy backend server api.
+	for example, if you want to replace api 
+	'http://xxx.com/api/anything'
+	with 
+	'http://localhost:8080/api/anything', you can do like this: 
+	-b /api:http://xxx.com/api
+		
+	if you want to replace api
+	'http://xxx.com/api/anything'
+	with 
+	'http://localhost:8080/3rd/api/anything', you can do like this:
+	-b /3rd/api:http://xxx.com/api
+	if you have many mappings, split with semicolon.
+`,
+					Destination: &common.BackendSettings,
 				},
 			},
 		},
@@ -272,3 +293,6 @@ func humanReadableSize(size int64) string {
 		return strconv.FormatFloat(float64(size)/1099511627776, 'f', 2, 64) + "Tb"
 	}
 }
+
+
+func
