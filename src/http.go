@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -127,7 +128,7 @@ func main() {
 			writer.Write([]byte(ret))
 		} else {
 			f, _ := lib.GetFile(filename)
-			io.Copy(writer, f)
+			downloadFile(f, writer, request)
 		}
 	})
 
@@ -386,4 +387,65 @@ func invokeBackend(uri string) string {
 		}
 	}
 	return ""
+}
+
+func downloadFile(file *os.File, writer http.ResponseWriter, request *http.Request) {
+	defer file.Close()
+	// parse header: range
+	rangeH := request.Header["Range"]
+	var rangeS string
+	if rangeH != nil && len(rangeH) > 0 {
+		rangeS = rangeH[0]
+	}
+	start, end := parseHeaderRange(rangeS)
+	if start <= 0 {
+		start = 0
+	}
+	fInfo, err := file.Stat()
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		lib.WriteHttpResponse(writer, http.StatusInternalServerError, common.INTERNAL_SERVER_ERROR, nil)
+		return
+	}
+	if end <= 0 || end > (fInfo.Size()-1) || end == start {
+		end = fInfo.Size()
+	}
+
+	// log.Println("range:", start, "-", end)
+	totalLen := end - start
+	writer.Header().Add("Accept-Ranges", "bytes")
+	writer.Header().Add("Content-Length", strconv.FormatInt(totalLen, 10))
+	writer.Header().Add("Content-Range", "bytes "+strconv.FormatInt(start, 10)+"-"+strconv.FormatInt(end-1, 10)+"/"+strconv.FormatInt(fInfo.Size(), 10))
+
+	// adapt different clients
+	// such as chrome needs 200 xunlei needs 206
+	if rangeS == "" {
+		writer.WriteHeader(200)
+	} else {
+		writer.WriteHeader(206)
+	}
+
+	file.Seek(start, 0)
+	io.CopyN(writer, file, totalLen)
+}
+
+// parseHeaderRange if end is 0, then the end represents max
+func parseHeaderRange(rang string) (int64, int64) {
+	if rang == "" {
+		return 0, 0
+	}
+	if mat, _ := regexp.Match(common.RANGE_HEADER, []byte(rang)); !mat {
+		return 0, 0
+	}
+	s := common.CompiledRegexpRangeHeader.ReplaceAllString(rang, "${1}")
+	e := common.CompiledRegexpRangeHeader.ReplaceAllString(rang, "${2}")
+	uintS, e1 := strconv.ParseInt(s, 10, 64)
+	uintE, e2 := strconv.ParseInt(e, 10, 64)
+	if e1 != nil {
+		return 0, 0
+	}
+	if e2 != nil {
+		return uintS, 0
+	}
+	return uintS, uintE
 }
