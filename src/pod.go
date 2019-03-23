@@ -55,7 +55,6 @@ func main() {
 	}
 
 	common.ContextPath = lib.FixPath("/" + common.ContextPath)
-	log.Println("map local directory", common.WorkDir, "to http context", common.ContextPath)
 
 	httpClient = &http.Client{}
 
@@ -139,6 +138,10 @@ func main() {
 		}
 	})
 
+	if common.ListenString == "-" {
+		a := make(chan int)
+		<-a
+	}
 	s := &http.Server{
 		Addr: common.ListenHost + ":" + common.Port,
 		// ReadTimeout:    10 * time.Second,
@@ -147,6 +150,7 @@ func main() {
 		MaxHeaderBytes:    1 << 20,
 	}
 
+	log.Println("map local directory", common.WorkDir, "to http context", common.ContextPath)
 	log.Println("http server listening on", common.ListenHost+":"+common.Port)
 
 	for {
@@ -177,10 +181,12 @@ func initHttpFlags() {
 			},
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:        "port,p",
-					Value:       "80",
-					Usage:       "specify the http port, format: [listen_host:]port",
-					Destination: &common.Port,
+					Name:  "port,p",
+					Value: "",
+					Usage: `specify the http port, format: [listen_host:]port
+	if you don't want to start an http server, the must explicitly specified as '-'.
+`,
+					Destination: &common.ListenString,
 				},
 				cli.StringFlag{
 					Name:        "context,c",

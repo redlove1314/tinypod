@@ -88,6 +88,7 @@ td {
 var (
 	ListenHost      = ""
 	Port            = "80"
+	ListenString    = ""
 	ContextPath     = "/"
 	WorkDir         = ""
 	BasicAuth       = ""
@@ -145,7 +146,12 @@ func ParseStreamMapping() {
 }
 
 func ParseListenPort() {
-	p := strings.TrimSpace(Port)
+	p := strings.TrimSpace(ListenString)
+	ListenString = p
+	if p == "-" {
+		log.Println("http server is disabled.")
+		return
+	}
 	if mat, err := regexp.Match(PORT_PATTERN, []byte(p)); err != nil || !mat {
 		log.Fatal("error parse listen port" + p + ": format error!")
 	}
