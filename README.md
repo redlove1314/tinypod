@@ -16,7 +16,7 @@ A simple http/tcp proxy util which can bring great fun!
 ## Table of Contents
 
 * [Build](#build)
-* [Usage](#how-to-use)
+* [Usage](#usage)
 * [Docker Image](#docker-image)
 * [Donation](#donation)
 
