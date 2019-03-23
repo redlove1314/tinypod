@@ -22,7 +22,6 @@ echo "step 2/3: install libs..."
 go get github.com/urfave/cli
 
 echo "step 3/3: build..."
-go build -i -o bin/http src/http.go
-go build -i -o bin/proxy src/proxy.go
+go build -i -o bin/pod src/pod.go
 
 echo "build success!"

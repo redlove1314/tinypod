@@ -14,6 +14,7 @@ import (
 	"io/ioutil"
 	"lib"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -37,6 +38,12 @@ func main() {
 	}
 	// parse backend mappings
 	common.ParseBackendMapping()
+	// parse stream mappings
+	common.ParseStreamMapping()
+	// parse listening port
+	common.ParseListenPort()
+
+	startStreamServers()
 
 	workDir, _ := os.Getwd()
 	if common.WorkDir != "" {
@@ -133,18 +140,23 @@ func main() {
 	})
 
 	s := &http.Server{
-		Addr: ":" + strconv.Itoa(common.Port),
+		Addr: common.ListenHost + ":" + common.Port,
 		// ReadTimeout:    10 * time.Second,
 		ReadHeaderTimeout: 10 * time.Second,
 		WriteTimeout:      0,
 		MaxHeaderBytes:    1 << 20,
 	}
 
-	log.Println("http server listening on port", strconv.Itoa(common.Port))
-	err := s.ListenAndServe()
-	if err != nil {
+	log.Println("http server listening on", common.ListenHost+":"+common.Port)
+
+	for {
+		err := s.ListenAndServe()
+		if err != nil {
+			log.Println("error start http server:", err)
+			time.Sleep(time.Second * 10)
+			continue
+		}
 	}
-	log.Fatal("error:", err)
 }
 
 func initHttpFlags() {
@@ -164,10 +176,10 @@ func initHttpFlags() {
 				return nil
 			},
 			Flags: []cli.Flag{
-				cli.IntFlag{
+				cli.StringFlag{
 					Name:        "port,p",
-					Value:       80,
-					Usage:       "http port",
+					Value:       "80",
+					Usage:       "specify the http port, format: [listen_host:]port",
 					Destination: &common.Port,
 				},
 				cli.StringFlag{
@@ -194,20 +206,29 @@ func initHttpFlags() {
 					Destination: &common.IndexDir,
 				},
 				cli.StringFlag{
+					Name:  "stream,s",
+					Value: "",
+					Usage: `create stream forwarding.
+	format:
+	[host:]port:remote_host:remote_port
+`,
+					Destination: &common.StreamSettings,
+				},
+				cli.StringFlag{
 					Name:  "backend,b",
 					Value: "",
 					Usage: `proxy backend server api.
-	for example, if you want to replace api 
-	'http://xxx.com/api/anything'
-	with 
-	'http://localhost:8080/api/anything', you can do like this: 
-	-b /api:http://xxx.com/api
+	for example, if want to use 
+	'http://localhost/api/anything'
+	to proxy api 
+	'http://www.x.com/api/anything', you can do like this: 
+	-b /api:http://www.x.com
 		
-	if you want to replace api
-	'http://xxx.com/api/anything'
-	with 
-	'http://localhost:8080/3rd/api/anything', you can do like this:
-	-b /3rd/api:http://xxx.com/api
+	if want to use 
+	'http://localhost/context/anything'
+	to proxy api 
+	'http://www.x.com/anything', you can do like this: 
+	-b /context:http://www.x.com/
 	if you have many mappings, split with semicolon.
 `,
 					Destination: &common.BackendSettings,
@@ -363,7 +384,7 @@ func resolveBackend(k string, uri string, writer http.ResponseWriter, request *h
 			}
 			// log.Println("body read finish")
 		}, func(i interface{}) {
-			log.Println("error proxy url: ", proxyUrl, ":", i)
+			log.Println("error proxy url: ", proxyUrl, "due to", i)
 		})
 	}
 }
@@ -448,4 +469,66 @@ func parseHeaderRange(rang string) (int64, int64) {
 		return uintS, 0
 	}
 	return uintS, uintE
+}
+
+// start stream listening
+func startStreamServers() {
+	if common.StreamMappings == nil || len(common.StreamMappings) == 0 {
+		return
+	}
+	for k, v := range common.StreamMappings {
+		go startStreamServer(k, v)
+	}
+}
+
+func startStreamServer(k string, v string) {
+	for {
+		listener, err := net.Listen("tcp", k)
+		if err != nil {
+			log.Println("error listening on address", k, "due to", err)
+			time.Sleep(time.Second * 10)
+			continue
+		}
+		log.Println("tcp server listening on", k)
+		for {
+			conn, err := listener.Accept()
+			// log.Println("new connection...")
+			if err != nil {
+				log.Println("error accept connection:", err)
+				conn.Close()
+				continue
+			}
+			backendConn, err := net.Dial("tcp", v)
+			if err != nil {
+				log.Println("error connect to server:", err)
+				conn.Close()
+				continue
+			}
+			pipe(backendConn, conn)
+		}
+	}
+}
+
+func pipe(conn1 net.Conn, conn2 net.Conn) {
+	if conn1 == nil || conn2 == nil {
+		return
+	}
+	go func() {
+		_, err := io.Copy(conn1, conn2)
+		if err != nil {
+			// log.Println("error: ", err, ", read bytes:", len)
+		}
+		// fmt.Println("pipe end1")
+		conn1.Close()
+		conn2.Close()
+	}()
+	go func() {
+		_, err := io.Copy(conn2, conn1)
+		if err != nil {
+			// log.Println("error: ", err, ", read bytes:", len)
+		}
+		// fmt.Println("pipe end2")
+		conn1.Close()
+		conn2.Close()
+	}()
 }

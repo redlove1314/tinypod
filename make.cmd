@@ -25,8 +25,7 @@ go get github.com/urfave/cli
 set GOPATH=%gp%;%pwd%
 
 echo step 3/3: build...
-go build -i -o bin/http.exe src/http.go
-go build -i -o bin/proxy.exe src/proxy.go
+go build -i -o bin/pod src/pod.go
 
 echo build success!
 
