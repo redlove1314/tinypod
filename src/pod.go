@@ -399,9 +399,11 @@ func invokeBackend(uri string) string {
 	if len(common.BackendMappings) == 0 {
 		return ""
 	}
+	selection := list.New()
 	for k := range common.BackendMappings {
 		if k == "/" {
-			return k
+			selection.PushBack(k)
+			continue
 		}
 		if strings.HasPrefix(uri, k) {
 			if len(uri) == len(k) && uri != k {
@@ -410,10 +412,20 @@ func invokeBackend(uri string) string {
 			if len(uri) > len(k) && (uri[0:len(k)] != k || uri[len(k):len(k)+1] != "/") {
 				continue
 			}
-			return k
+			selection.PushBack(k)
 		}
 	}
-	return ""
+	if selection.Len() == 0 {
+		return ""
+	}
+	ret := ""
+	for ele := selection.Front(); ele != nil; ele = ele.Next() {
+		k := ele.Value.(string)
+		if len(k) > len(ret) {
+			ret = k
+		}
+	}
+	return ret
 }
 
 func downloadFile(file *os.File, writer http.ResponseWriter, request *http.Request) {
