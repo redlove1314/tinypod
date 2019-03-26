@@ -96,6 +96,7 @@ var (
 	BackendSettings = ""
 	StreamSettings  = ""
 	IndexDir        = false
+	SupportMimeType = false
 	Command         int
 
 	CompiledRegexpRangeHeader = regexp.MustCompile(RANGE_HEADER)

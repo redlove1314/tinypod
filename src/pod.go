@@ -211,6 +211,11 @@ func initHttpFlags() {
 					Usage:       "whether support directory indexing",
 					Destination: &common.IndexDir,
 				},
+				cli.BoolFlag{
+					Name:        "mime",
+					Usage:       "whether support auto fill MimeTypes for header Content-Type",
+					Destination: &common.SupportMimeType,
+				},
 				cli.StringFlag{
 					Name:  "stream,s",
 					Value: "",
@@ -430,6 +435,12 @@ func invokeBackend(uri string) string {
 
 func downloadFile(file *os.File, writer http.ResponseWriter, request *http.Request) {
 	defer file.Close()
+
+	ext := lib.GetFileExt(file.Name())
+	if common.SupportWebContent(ext) {
+		writer.Header().Add("Content-Type", *common.GetContentTypeHeader(ext))
+	}
+
 	// parse header: range
 	rangeH := request.Header["Range"]
 	var rangeS string
@@ -452,16 +463,17 @@ func downloadFile(file *os.File, writer http.ResponseWriter, request *http.Reque
 
 	// log.Println("range:", start, "-", end)
 	totalLen := end - start
-	writer.Header().Add("Accept-Ranges", "bytes")
-	writer.Header().Add("Content-Length", strconv.FormatInt(totalLen, 10))
-	writer.Header().Add("Content-Range", "bytes "+strconv.FormatInt(start, 10)+"-"+strconv.FormatInt(end-1, 10)+"/"+strconv.FormatInt(fInfo.Size(), 10))
-
-	// adapt different clients
-	// such as chrome needs 200 xunlei needs 206
-	if rangeS == "" {
-		writer.WriteHeader(200)
-	} else {
-		writer.WriteHeader(206)
+	if rangeH != nil || len(rangeH) > 0 {
+		writer.Header().Add("Accept-Ranges", "bytes")
+		writer.Header().Add("Content-Length", strconv.FormatInt(totalLen, 10))
+		writer.Header().Add("Content-Range", "bytes "+strconv.FormatInt(start, 10)+"-"+strconv.FormatInt(end-1, 10)+"/"+strconv.FormatInt(fInfo.Size(), 10))
+		// adapt different clients
+		// such as chrome needs 200 xunlei needs 206
+		if rangeS == "" {
+			writer.WriteHeader(200)
+		} else {
+			writer.WriteHeader(206)
+		}
 	}
 
 	file.Seek(start, 0)
