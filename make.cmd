@@ -25,7 +25,7 @@ go get github.com/urfave/cli
 set GOPATH=%gp%;%pwd%
 
 echo step 3/3: build...
-go build -i -o bin/pod src/pod.go
+go build -i -o bin/pod.exe src/pod.go
 
 echo build success!
 
