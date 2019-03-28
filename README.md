@@ -45,7 +45,7 @@ output executable file: ```bin/pod```
 **Full usage:**
 
 ```shell
-http start \
+pod start \
 -p 127.0.0.1:8080 \
 -c /app
 -w /usr/share/html \
@@ -53,6 +53,7 @@ http start \
 -i 
 -b "/api:/http://test.host.com/api"
 -s ":7878:192.168.1.100:22;127.0.0.1:9000:192.168.1.101:22" 
+--mime
 ```
 
 **description:**
@@ -79,6 +80,9 @@ http start \
 -s ":7878:192.168.1.100:22;127.0.0.1:9000:192.168.1.101:22" 
 # this parameter means that pod is listening on 0.0.0.0:7878 
 # which is forwarding to 192.168.1.100:22 and 127.0.0.1:9000 is forwarding to 192.168.1.101:22.
+
+--mime
+# support http mime types
 ```
 
 
